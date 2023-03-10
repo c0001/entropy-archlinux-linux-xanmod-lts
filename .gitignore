@@ -1,0 +1,8 @@
+/linux-*.tar.sign
+/linux-*.tar.xz
+/linux-xanmod-lts-*-x86_64.pkg.tar.zst
+/linux-xanmod-lts-headers-*-x86_64.pkg.tar.zst
+/patch-*-xanmod1.xz
+/config.last
+/pkg
+/src
