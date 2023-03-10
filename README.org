@@ -4,3 +4,8 @@
 This PKGBUILD repository is a fork of [[https://aur.archlinux.org/linux-xanmod-lts.git][figue's aur linux-xanmod-lts
 repo]] which modified by me relied on my own homework. Thus this
 project may not compatible with your aimed purpose.
+
+Usage:
+#+begin_src shell
+./Make.sh --help
+#+end_src
