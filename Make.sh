@@ -274,7 +274,7 @@ if [[ $Vrtn -eq 0 ]]; then
         _msg "Generate dist ..."
         _get_dist_files
         _cmd_exec_notest cp -a "${VdistITEMS[@]}" "${VdistDir%/}/"
-        _nerr "mv generations to dist with fatal"
+        _nerr "cp generations to dist with fatal"
         cd "$VdistDir"
         _msg "Gen sha256sum.log ..."
         if [[ -e $Vshalogfile ]] || [[ -e $Vshalogascfile ]]
