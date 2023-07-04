@@ -22,6 +22,11 @@ declare Vconfig='config_x86-64-v1'
 declare Vcompress=n
 declare Vtest=n
 declare Vinstall=n
+declare Vrtn=0
+declare VdistDir="${this_dir_name%/}/dist"
+declare Vshalogfile="${this_dir_name%/}/sha256sum.log"
+declare Vshalogascfile="${this_dir_name%/}/sha256sum.log.asc"
+declare VgpgverifyID="D7E3805570B934FEC2CC8C6F1E72C8B73C01055B"
 
 _err ()
 {
@@ -37,12 +42,18 @@ _nerr ()
 
 _date_show ()
 {
-    date -u +"%Y%m%d%H%M%S"
+    printf "%(%Y%m%d%H%M%S)T\n" "$@"
+}
+
+_print ()
+{
+    printf "$@" >&2
 }
 
 _msg ()
 {
-    printf "$@" >&2
+    printf "\e[032m${1}\e[0m" >&2
+    printf "\n" >&2
 }
 
 _cmd_show ()
@@ -50,23 +61,41 @@ _cmd_show ()
     local command="$1"
     local -a args=("${@:2}")
     local this_date="$(trap '' SIGINT; _date_show)"
-    _msg "\e[33m%s\e[0m [\e[33m%s\e[0m]: " "[${this_date}]" "SHOW"
-    _msg "\e[1m%s\e[0m" "${command}"
+    _print "\e[33m%s\e[0m [\e[33m%s\e[0m]: " "[${this_date}]" "SHOW"
+    _print "\e[1m%s\e[0m" "${command}"
     local item
     local count=1
     for item in "${args[@]}"
     do
-        _msg " \e[34m%s\e[0m:\e[4m%s\e[0m" "[$count]" "${item}"
+        _print " \e[34m%s\e[0m:\e[4m%s\e[0m" "[$count]" "${item}"
         let count++ ; : ;
     done
-    _msg '\n'
+    _print '\n'
 }
 
 _cmd_exec ()
 {
     _cmd_show "$@"
     if [ "$Vtest" = y ]; then
-        exit 0
+        return 0
+    fi
+    "$@"
+}
+
+_cmd_exec_notest ()
+{
+    _cmd_show "$@"; "$@"
+}
+
+_cmd_exec_main_step ()
+{
+    _cmd_show "$@"
+    if [ "$Vtest" = y ]; then
+        touch linux-xanmod-lts-headers-x86_64_test_fake.pkg.tar.zst
+        _nerr "inner: fake touch"
+        touch linux-xanmod-lts-x86_64_test_fake.pkg.tar.zst
+        _nerr "inner: fake touch"
+        return 0
     fi
     "$@"
 }
@@ -84,10 +113,10 @@ ${BASH_SOURCE[0]} [-h|--help|--list-arch] [-a architecture] [--nm] [-c config] [
 1. --nm :
 
    Disable NUMA since most users do not have multiple
-   processors. Breaks CUDA/NvEnc.  Archlinux and Xanmod enable it by
-   default.  Set variable "use_numa" to:
-   * n to disable (possibly increase performance)
-   * y to enable  (stock default)
+   processors. Breaks CUDA/NvEnc.  Archlinux and Xanmod not set it by
+   default.
+   * If set possibly(may) increase performance
+   * Default not set as stock default with multi processors usage
 
 2. -a : The target cpu microarchitecture for optimized for this kernel
    building. (use option --list-arch to show available architectures)
@@ -101,7 +130,11 @@ ${BASH_SOURCE[0]} [-h|--help|--list-arch] [-a architecture] [--nm] [-c config] [
    selecting any option in microarchitecture script Source files:
    https://github.com/xanmod/linux/tree/5.17/CONFIGS/xanmod/gcc
 
-4. --test : Dry run without do anything but show the makepkg command
+4. -i : install packages after built
+
+5. --compress : compress modules with ZSTD methods (default disabled)
+
+6. --test : Dry run without do anything but show the makepkg command
    pipeline.
 
 EOF
@@ -150,8 +183,51 @@ Vargs=("_microarchitecture=${Vmarch}"
        "_compress_modules=${Vcompress}"
       )
 
+rm -f *.pkg.tar.zst ; _nerr "rm -f *.pkg.tar.zst"
+rm -f "$Vshalogfile" ; _nerr "rm -f $Vshalogfile"
+rm -f "$Vshalogascfile" ; _nerr "rm -f $Vshalogascfile"
+
+if [[ -e $VdistDir ]] ; then
+    _msg "remove old dist: $VdistDir"
+    if ( read -p "Really?(y/n) " _yon && [[ $_yon = 'y' ]] )
+    then
+        _cmd_exec_notest rm -rf "$VdistDir"
+        _nerr "rm -rf $Vshalogascfile"
+    else
+        while [[ -e $VdistDir ]]; do
+            VdistDir="${VdistDir%/}_$(_date_show)_${RANDOM}"
+        done
+    fi
+fi
+mkdir -p "$VdistDir" ; _nerr "inner: mkdir '$VdistDir'"
+
 if [ "$Vinstall" = y ]; then
-    _cmd_exec makepkg -sfCi "${Vargs[@]}"
+    _cmd_exec_main_step makepkg -sfCi "${Vargs[@]}"
 else
-    _cmd_exec makepkg -sfC  "${Vargs[@]}"
+    _cmd_exec_main_step makepkg -sfC  "${Vargs[@]}"
+fi
+Vrtn=$?
+if [[ $Vrtn -eq 0 ]]; then
+    if [[ $Vinstall != 'y' ]] ; then
+        _msg "Generate dist ..."
+        _msg "Gen sha256sum.log ..."
+        if [[ -e $Vshalogfile ]] || [[ -e $Vshalogascfile ]]
+        then
+            _err "inner: '$Vshalogfile' or '$Vshalogascfile' existed"
+        fi
+        sha256sum -b *.pkg.tar.zst >> "$Vshalogfile"
+        _nerr "shahash for pkgs fatal"
+        if gpg --list-secret-keys \
+               "$VgpgverifyID" >/dev/null 2>&1
+        then
+            gpg --detach-sign --armor \
+                -u "$VgpgverifyID" -o "$Vshalogascfile"  "$Vshalogfile"
+        fi
+        _nerr "shahash asc file generated with fatal"
+        _cmd_exec_notest mv *.pkg.tar.zst "$Vshalogascfile" "$Vshalogfile" "${VdistDir%/}/"
+        _nerr "mv generations to dist with fatal"
+        _msg "Ok: dist dir is '$VdistDir'"
+    fi
+else
+    _err "makepkg with fatal"
 fi
