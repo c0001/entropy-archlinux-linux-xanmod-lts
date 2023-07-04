@@ -188,11 +188,10 @@ case "$Vconfig" in
 esac
 
 declare -a Vargs
-Vargs=("_microarchitecture=${Vmarch}"
-       "use_numa=${Vmulticpu}"
-       "_config=${Vconfig}"
-       "_compress_modules=${Vcompress}"
-      )
+[[ -n $Vmarch ]]           && Vargs+=("_microarchitecture=${Vmarch}")
+[[ -n $Vmulticpu ]]        && Vargs+=("use_numa=${Vmulticpu}")
+[[ -n $Vconfig ]]          && Vargs+=("_config=${Vconfig}")
+[[ -n $Vcompress ]]        && Vargs+=("_compress_modules=${Vcompress}")
 
 rm -f *.pkg.tar.zst ; _nerr "rm -f *.pkg.tar.zst"
 rm -f "$Vshalogfile" ; _nerr "rm -f $Vshalogfile"
@@ -213,9 +212,9 @@ fi
 mkdir -p "$VdistDir" ; _nerr "inner: mkdir '$VdistDir'"
 
 if [ "$Vinstall" = y ]; then
-    _cmd_exec_main_step makepkg -sfCi "${Vargs[@]}"
+    _cmd_exec_main_step env "${Vargs[@]}" makepkg -sfCi
 else
-    _cmd_exec_main_step makepkg -sfC  "${Vargs[@]}"
+    _cmd_exec_main_step env "${Vargs[@]}" makepkg -sfC
 fi
 Vrtn=$?
 if [[ $Vrtn -eq 0 ]]; then
