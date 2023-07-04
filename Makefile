@@ -1,9 +1,14 @@
 .PHONY: clean
 clean:
-	@if [ -d .git ] ; then          \
-		git reset --hard HEAD ; \
-		git clean -xfd .      ; \
-	fi
+	@bash -c "set -e; if [ -d .git ]      ; \
+		then echo 'In-git-mode'       ; \
+			git reset --hard HEAD ; \
+			git clean -xfd .      ; \
+		else \
+			echo 'In-nongit-mode' ; \
+			rm -vf *.pkg.tar.zst  ; \
+			rm -vrf src pkg       ; \
+		fi"
 
 .PHONY: test
 test:
