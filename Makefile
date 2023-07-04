@@ -1,14 +1,18 @@
+.PHONY: clean
 clean:
 	@if [ -d .git ] ; then          \
 		git reset --hard HEAD ; \
 		git clean -xfd .      ; \
 	fi
 
+.PHONY: test
 test:
 	@bash Make.sh --test
 
-build_stock: clean
+.PHONY: build/stock
+build/stock: clean
 	@bash Make.sh
 
-build_stock_intel_tigerlake:  clean
+.PHONY: build/stock/intel/tigerlake
+build/stock/intel/tigerlake:  clean
 	@bash Make.sh -a 44
