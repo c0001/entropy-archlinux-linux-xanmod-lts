@@ -14,5 +14,5 @@ build/stock: clean
 	@bash Make.sh
 
 .PHONY: build/stock/intel/tigerlake
-build/stock/intel/tigerlake:  clean
+build/stock/intel/tigerlake: clean
 	@bash Make.sh -a 44
