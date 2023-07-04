@@ -121,7 +121,8 @@ _get_dist_files ()
         if [[ $i = '.git' ]]     || \
                [[ $i = 'src' ]]  || \
                [[ $i = 'pkg' ]]  || \
-               [[ $i =~ ^"$VdistDirName" ]]
+               [[ $i =~ ^"$VdistDirName" ]] || \
+               [[ $i =~ ^sha256sum\.log.* ]]
         then
             :
         else
