@@ -9,3 +9,7 @@ Usage:
 #+begin_src shell
 ./Make.sh --help
 #+end_src
+
+Or directly run
+: make build/stock
+to build a default stock kernel package.

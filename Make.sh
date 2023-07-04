@@ -15,6 +15,7 @@ this_dir_name="$( cd -P "$( dirname "$this_source_name" )" >/dev/null && pwd )"
 
 # ensure do with project root
 cd "$this_dir_name"
+set +e
 
 declare Vmarch=0
 declare Vmulticpu=y
@@ -23,9 +24,10 @@ declare Vcompress=n
 declare Vtest=n
 declare Vinstall=n
 declare Vrtn=0
-declare VdistDir="${this_dir_name%/}/dist"
-declare Vshalogfile="${this_dir_name%/}/sha256sum.log"
-declare Vshalogascfile="${this_dir_name%/}/sha256sum.log.asc"
+declare VdistDirName=dist
+declare VdistDir="${this_dir_name%/}/${VdistDirName}"
+declare Vshalogfile="sha256sum.log"
+declare Vshalogascfile="sha256sum.log.asc"
 declare VgpgverifyID="D7E3805570B934FEC2CC8C6F1E72C8B73C01055B"
 
 _err ()
@@ -89,15 +91,60 @@ _cmd_exec_notest ()
 
 _cmd_exec_main_step ()
 {
-    _cmd_show "$@"
+    local opts="$1"
+    local -a _envs=("${@:2}")
     if [ "$Vtest" = y ]; then
-        touch linux-xanmod-lts-headers-x86_64_test_fake.pkg.tar.zst
-        _nerr "inner: fake touch"
-        touch linux-xanmod-lts-x86_64_test_fake.pkg.tar.zst
-        _nerr "inner: fake touch"
+        env "${_envs[@]}" makepkg "$opts" -p _PKGBUILD
         return 0
     fi
-    "$@"
+    _cmd_show env "${_envs[@]}" makepkg "$opts"
+    env "${_envs[@]}" makepkg "$opts"
+}
+
+declare -a VdistITEMS
+declare VdistShaHashStr
+_get_dist_files ()
+{
+    local i j opwd
+    opwd="$(pwd)"
+    _nerr "inner: pwd -- _get_dist_files"
+    cd "${this_dir_name}"; _nerr "inner cd: ${this_dir_name}"
+    local _dotglob_p=0
+    if shopt -pq dotglob ; then
+        _dotglob_p=1
+    else
+        shopt -s dotglob
+        _nerr "shopt -s dotglob"
+    fi
+
+    for i in * ; do
+        if [[ $i = '.git' ]]     || \
+               [[ $i = 'src' ]]  || \
+               [[ $i = 'pkg' ]]  || \
+               [[ $i =~ ^"$VdistDirName" ]]
+        then
+            :
+        else
+            VdistITEMS+=("$i")
+            if [[ -d $i ]] ; then
+                _nerr "inner pwd -- 2"
+                _msg "gen shahash for dir $i ..."
+                j="$(find "$i "-type f -print0 | xargs --null sha56sum -b)"
+                _nerr "shahash: dir $i"
+            else
+                _msg "gen shahash for file $i ..."
+                j="$(sha256sum -b "$i")"
+                _nerr "shahash: file $i"
+            fi
+            VdistShaHashStr="${VdistShaHashStr}
+${j}"
+        fi
+    done
+    if [[ $_dotglob_p -ne 1 ]] ; then
+        shopt -u dotglob
+        _nerr "shopt -u dotglob"
+    fi
+    cd "$opwd" ;  _nerr "inner cd: $opwd"
 }
 
 _march_list ()
@@ -193,16 +240,21 @@ declare -a Vargs
 [[ -n $Vconfig ]]          && Vargs+=("_config=${Vconfig}")
 [[ -n $Vcompress ]]        && Vargs+=("_compress_modules=${Vcompress}")
 
+cd "$this_dir_name"; _nerr "inner cd: $this_dir_name"
 rm -f *.pkg.tar.zst ; _nerr "rm -f *.pkg.tar.zst"
-rm -f "$Vshalogfile" ; _nerr "rm -f $Vshalogfile"
-rm -f "$Vshalogascfile" ; _nerr "rm -f $Vshalogascfile"
+if [[ -d src ]] ; then
+    rm -rf ./src ; _nerr "rm -rf src"
+fi
+if [[ -d pkg ]] ; then
+    rm -rf ./pkg ; _nerr "rm -rf pkg"
+fi
 
 if [[ -e $VdistDir ]] ; then
     _msg "remove old dist: $VdistDir"
     if ( read -p "Really?(y/n) " _yon && [[ $_yon = 'y' ]] )
     then
         _cmd_exec_notest rm -rf "$VdistDir"
-        _nerr "rm -rf $Vshalogascfile"
+        _nerr "rm -rf $VdistDir"
     else
         while [[ -e $VdistDir ]]; do
             VdistDir="${VdistDir%/}_$(_date_show)_${RANDOM}"
@@ -212,21 +264,25 @@ fi
 mkdir -p "$VdistDir" ; _nerr "inner: mkdir '$VdistDir'"
 
 if [ "$Vinstall" = y ]; then
-    _cmd_exec_main_step env "${Vargs[@]}" makepkg -sfCi
+    _cmd_exec_main_step -sfCi "${Vargs[@]}"
 else
-    _cmd_exec_main_step env "${Vargs[@]}" makepkg -sfC
+    _cmd_exec_main_step -sfC  "${Vargs[@]}"
 fi
 Vrtn=$?
 if [[ $Vrtn -eq 0 ]]; then
     if [[ $Vinstall != 'y' ]] ; then
         _msg "Generate dist ..."
+        _get_dist_files
+        _cmd_exec_notest cp -a "${VdistITEMS[@]}" "${VdistDir%/}/"
+        _nerr "mv generations to dist with fatal"
+        cd "$VdistDir"
         _msg "Gen sha256sum.log ..."
         if [[ -e $Vshalogfile ]] || [[ -e $Vshalogascfile ]]
         then
             _err "inner: '$Vshalogfile' or '$Vshalogascfile' existed"
         fi
-        sha256sum -b *.pkg.tar.zst >> "$Vshalogfile"
-        _nerr "shahash for pkgs fatal"
+        echo "$VdistShaHashStr" >> "$Vshalogfile"
+        _nerr "write shahashs fatal"
         if [[ -n $VgpgverifyID ]] && \
                gpg --list-secret-keys \
                    "$VgpgverifyID" >/dev/null 2>&1
@@ -235,8 +291,6 @@ if [[ $Vrtn -eq 0 ]]; then
                 -u "$VgpgverifyID" -o "$Vshalogascfile"  "$Vshalogfile"
         fi
         _nerr "shahash asc file generated with fatal"
-        _cmd_exec_notest mv *.pkg.tar.zst "$Vshalogascfile" "$Vshalogfile" "${VdistDir%/}/"
-        _nerr "mv generations to dist with fatal"
         _msg "Ok: dist dir is '$VdistDir'"
     fi
 else

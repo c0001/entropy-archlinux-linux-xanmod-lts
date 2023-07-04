@@ -1,0 +1,26 @@
+# -*- mode: sh; -*-
+pkgbase=linux-xanmod-lts-fake
+_major=6.1
+pkgver=${_major}.37
+_branch=6.x
+xanmod=1
+pkgrel=${xanmod}
+pkgdesc='Linux Xanmod LTS'
+url="http://www.xanmod.org/"
+arch=(x86_64)
+license=(GPL2)
+options=('!strip')
+source=(_PKGBUILD)
+sha256sums=('SKIP')
+
+build ()
+{
+    :
+}
+
+pkgname=("${pkgbase}" "${pkgbase}-headers")
+for _p in "${pkgname[@]}"; do
+    eval "package_$_p() {
+       install --target-directory=\"\${pkgdir}\" \"\${startdir}/_PKGBUILD\"
+  }"
+done
