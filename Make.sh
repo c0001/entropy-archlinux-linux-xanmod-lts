@@ -132,9 +132,12 @@ ${BASH_SOURCE[0]} [-h|--help|--list-arch] [-a architecture] [--nm] [-c config] [
 
 4. -i : install packages after built
 
-5. --compress : compress modules with ZSTD methods (default disabled)
+5. --sign-gpg-key : the gnupg keyid/name for sign the distribution, if
+   not set, using the author's one if found and can be used.
 
-6. --test : Dry run without do anything but show the makepkg command
+6. --compress : compress modules with ZSTD methods (default disabled)
+
+7. --test : Dry run without do anything but show the makepkg command
    pipeline.
 
 EOF
@@ -142,20 +145,28 @@ EOF
 
 declare options
 options="$(getopt -o ha:c:i \
---long help --long list-arch --long nm --long compress --long test -- "$@")"
+--long help \
+--long list-arch \
+--long nm \
+--long compress \
+--long sign-gpg-key \
+--long test -- "$@")"
 _nerr
 eval set -- "$options"
 while true; do
     case "$1" in
         -h|--help)   _help;        exit 0 ;;
         --list-arch) _march_list ; exit 0 ;;
-        -a) shift;   Vmarch="$1"          ;;
+        -a) shift 1; Vmarch="$1"          ;;
         -i)          Vinstall=y           ;;
         --nm)        Vmulticpu=n          ;;
         -c) shift;   Vconfig="$1"         ;;
         --compress)  Vcompress=y          ;;
+        --sign-gpg-key)
+            shift 1
+            VgpgverifyID="$1"             ;;
         --test)      Vtest=y              ;;
-        --) shift;                  break ;;
+        --) shift 1;                break ;;
         *) _help;                  exit 1 ;;
     esac
     shift
@@ -217,8 +228,9 @@ if [[ $Vrtn -eq 0 ]]; then
         fi
         sha256sum -b *.pkg.tar.zst >> "$Vshalogfile"
         _nerr "shahash for pkgs fatal"
-        if gpg --list-secret-keys \
-               "$VgpgverifyID" >/dev/null 2>&1
+        if [[ -n $VgpgverifyID ]] && \
+               gpg --list-secret-keys \
+                   "$VgpgverifyID" >/dev/null 2>&1
         then
             gpg --detach-sign --armor \
                 -u "$VgpgverifyID" -o "$Vshalogascfile"  "$Vshalogfile"
