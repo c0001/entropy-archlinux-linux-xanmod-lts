@@ -55,12 +55,14 @@ declare Vcompress=n
 declare Vtest=n
 declare Vinstall=n
 declare Vrtn=0
-declare VdistDirHostName=dist
 declare Vshalogfile="sha256sum.log"
 declare Vshalogascfile="sha256sum.log.asc"
 declare VgpgverifyID="D7E3805570B934FEC2CC8C6F1E72C8B73C01055B"
 
+declare VdistDirHostName=dist
 declare VdistDir
+declare VdistDirParent
+declare VdistTarball
 declare VpkgName
 function _Vfunc_set_pkgnames_and_distdir ()
 {
@@ -69,7 +71,27 @@ function _Vfunc_set_pkgnames_and_distdir ()
     # fake basename will also applied to fake pkgbuild's env
     Vpkgbasename="${prefix}${Vpkgbasename}"
     VpkgName="${Vpkgbasename}-${Vpkgver}-${Vpkgrel}-${Vpkgarch}"
-    VdistDir="${this_dir_name%/}/${VdistDirHostName}/${VpkgName}_release_$(_date_show)"
+    VdistDirParent="${this_dir_name%/}/${VdistDirHostName}"
+    VdistDir="${VdistDirParent%/}/${VpkgName}_release_$(_date_show)"
+    if [[ $Vinstall != 'y' ]] ; then
+        if [[ -e $VdistDir ]] ; then
+            _msg "remove old dist: $VdistDir"
+            if ( read -p "Really?(y/n) " _yon && [[ $_yon = 'y' ]] )
+            then
+                _cmd_exec_notest rm -rf "$VdistDir"
+                _nerr "rm -rf $VdistDir"
+            else
+                while [[ -e $VdistDir ]]; do
+                    VdistDir="${VdistDir%/}_$(_date_show)_${RANDOM}"
+                done
+            fi
+        fi
+        mkdir -p "$VdistDir" ; _nerr "inner: mkdir '$VdistDir'"
+        VdistTarball="${VdistDir%/}.tar.xz"
+        if [[ -e $VdistTarball ]] ; then
+            _err "dist tarball existed: $VdistTarball"
+        fi
+    fi
 }
 
 _err ()
@@ -305,20 +327,6 @@ function _Vfunc_clean_build_cache () {
 
 _Vfunc_clean_build_cache
 
-if [[ -e $VdistDir ]] ; then
-    _msg "remove old dist: $VdistDir"
-    if ( read -p "Really?(y/n) " _yon && [[ $_yon = 'y' ]] )
-    then
-        _cmd_exec_notest rm -rf "$VdistDir"
-        _nerr "rm -rf $VdistDir"
-    else
-        while [[ -e $VdistDir ]]; do
-            VdistDir="${VdistDir%/}_$(_date_show)_${RANDOM}"
-        done
-    fi
-fi
-mkdir -p "$VdistDir" ; _nerr "inner: mkdir '$VdistDir'"
-
 if [ "$Vinstall" = y ]; then
     _cmd_exec_main_step -sfCi "${Vargs[@]}"
 else
@@ -350,6 +358,11 @@ if [[ $Vrtn -eq 0 ]]; then
         _msg "Ok: dist dir is '$VdistDir'"
         _msg "clean build cache ..."
         _Vfunc_clean_build_cache
+        _msg "create release tarball ..."
+        _cmd_exec_notest tar -Jcf "$VdistTarball" -C "${VdistDirParent}" "$VdistDir"
+        _nerr "create dist tarball with fatal: $VdistTarball"
+        _cmd_exec_notest rm -rf "$VdistDir"
+        _nerr "remove dist dir fatal: $VdistDir"
         _msg "Ok: all is done"
     else
         _msg "makepkg with installation successfull"
