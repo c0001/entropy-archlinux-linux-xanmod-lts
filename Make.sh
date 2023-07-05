@@ -31,7 +31,7 @@ _date_show ()
 {
     printf "%(%Y%m%d%H%M%S)T\n" "$@"
 }
-
+declare -a Vmakepkg_opts
 declare Vpkgbasename
 Vpkgbasename=$(set -e; source PKGBUILD; echo "$pkgbase")
 declare Vpkgver
@@ -164,10 +164,12 @@ _cmd_exec_main_step ()
             "PKGBASE=$Vpkgbasename" \
             "PKGVER=$Vpkgver"       \
             "PKGREL=$Vpkgrel"       \
-            "$opts" -p __FAKE_PKGBUILD__
+            "$opts" "${Vmakepkg_opts[@]}" \
+            -p __FAKE_PKGBUILD__
         return $?
     fi
-    _cmd_exec_notest makepkg "${_envs[@]}" "$opts"
+    _cmd_exec_notest \
+        makepkg "${_envs[@]}" "$opts" "${Vmakepkg_opts[@]}"
 }
 
 declare -a VdistITEMS
@@ -323,6 +325,9 @@ Vargs+=("_microarchitecture=${Vmarch}")
 Vargs+=("use_numa=${Vmulticpu}")
 Vargs+=("_config=${Vconfig}")
 Vargs+=("_compress_modules=${Vcompress}")
+if [[ -n $__MAKE_NO_CONFIRM__ ]]; then
+    Vmakepkg_opts+=("--noconfirm")
+fi
 
 function _Vfunc_clean_build_cache () {
     local opwd

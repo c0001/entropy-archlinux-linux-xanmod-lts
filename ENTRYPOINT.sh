@@ -57,4 +57,5 @@ if [[ -z $_v_make_type ]] ; then
     _err "make type is not specified"
 fi
 cd "$_v_workspace"
+export __MAKE_NO_CONFIRM__=1
 make "$_v_make_type"
