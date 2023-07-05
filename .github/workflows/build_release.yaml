@@ -38,21 +38,23 @@ jobs:
         uses: actions/checkout@v2
       - name: Set Env (Top)
         run: |
-          echo "TOP_USER_ID=$(id -u)"       >> ${GITHUB_ENV}
-          echo "TOP_USER_GROUP_ID=$(id -g)" >> ${GITHUB_ENV}
-          echo "TOP_MAKE_TYPE=$(cat .release-make-type)" >> ${GITHUB_ENV}
+          echo "TOP_BUILD_USER_ID=$(id -u)"       >> ${GITHUB_ENV}
+          echo "TOP_BUILD_USER_GROUP_ID=$(id -g)" >> ${GITHUB_ENV}
+          cat  .release-env.txt                   >> ${GITHUB_ENV}
+          echo "TOP_BUILD_MAKE_TYPE=$(cat .release-make-type)" >> ${GITHUB_ENV}
           echo "RELEASE_DATE=$(date -u +'%Y%m%d%H%M%S')" >> ${GITHUB_ENV}
           echo "RELEASE_VERSION=$(cat .release-version)" >> ${GITHUB_ENV}
       - name: Set Env (Tag)
         run: |
-          echo "RELEASE_TAGNAME=CI/branch/${{ github.ref_name }}/make/${{ env.TOP_MAKE_TYPE }}/v${{ env.RELEASE_VERSION }}/${{ env.RELEASE_DATE }}" >> ${GITHUB_ENV}
+          echo "RELEASE_TAGNAME=CI/branch/${{ github.ref_name }}/make/${{ env.TOP_BUILD_MAKE_TYPE }}/v${{ env.RELEASE_VERSION }}/${{ env.RELEASE_DATE }}" >> ${GITHUB_ENV}
       - name: Build docker image
         run: |
-          sed -E -i -e "s|<<<<USERID>>>>|${{ env.TOP_USER_ID }}|g" -e "s|<<<<GROUPID>>>>|${{ env.TOP_USER_GROUP_ID }}|g" ./Dockerfile
-          docker build -t this_build_image -f ./Dockerfile .
+          sed -E -i -e "s|<<<<USERID>>>>|${{ env.TOP_BUILD_USER_ID }}|g" -e "s|<<<<GROUPID>>>>|${{ env.TOP_BUILD_USER_GROUP_ID }}|g" -e "s|<<<<USERNAME>>>>|${{ env.TOP_BUILD_USER_NAME }}|g" -e "s|<<<<GROUPNAME>>>>|${{ env.TOP_BUILD_USER_GROUP_NAME }}|g" ./Dockerfile
+          sed -E -i -e "s|<<<<TOP_BUILD_MOUNT_PATH>>>>|${{ env.TOP_BUILD_MOUNT_PATH }}|g" ./ENTRYPOINT.sh
+          docker build -t ${{ env.TOP_BUILD_DOCKER_IMAGE_TAG }} -f ./Dockerfile .
       - name: Build kernel
         run: |
-          docker run -i -e __MAKE_TYPE__=${{ env.TOP_MAKE_TYPE }} -v $PWD:/home/builder/project/linux-xanmod-lts -w /home/builder/project/linux-xanmod-lts this_build_image
+          docker run -i -e __MAKE_TYPE__=${{ env.TOP_BUILD_MAKE_TYPE }} -v $PWD:${{ env.TOP_BUILD_MOUNT_PATH }} -w ${{ env.TOP_BUILD_MOUNT_PATH }} ${{ env.TOP_BUILD_DOCKER_IMAGE_TAG }}
       - name: "Create latest pre-release tag"
         uses: rickstaa/action-create-tag@v1
         id: "tag_create"

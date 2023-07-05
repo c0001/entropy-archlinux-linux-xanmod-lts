@@ -1,0 +1,4 @@
+TOP_BUILD_USER_NAME=builder
+TOP_BUILD_USER_GROUP_NAME=builder
+TOP_BUILD_MOUNT_PATH=/home/builder/project/linux-xanmod-lts
+TOP_BUILD_DOCKER_IMAGE_TAG=entropy-linux-xanmod-lts-builder
