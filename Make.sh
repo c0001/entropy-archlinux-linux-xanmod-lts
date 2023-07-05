@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# ==================== set -e start ====================
 set -e
 
 this_source_name="${BASH_SOURCE[0]}"
@@ -26,6 +27,11 @@ function _Vfunc_array_memberp ()
     return 1
 }
 
+_date_show ()
+{
+    printf "%(%Y%m%d%H%M%S)T\n" "$@"
+}
+
 declare Vpkgbasename
 Vpkgbasename=$(set -e; source PKGBUILD; echo "$pkgbase")
 declare Vpkgver
@@ -41,8 +47,8 @@ Vpkgarch="$(uname -m)"
 is not supported by defined { ${arch[*]} }" \
       "${arch[@]}" ;
 )
+
 declare VpkgName="${Vpkgbasename}-${Vpkgver}-${Vpkgrel}-${Vpkgarch}"
-set +e
 
 declare Vmarch=0
 declare Vmulticpu=y
@@ -51,27 +57,22 @@ declare Vcompress=n
 declare Vtest=n
 declare Vinstall=n
 declare Vrtn=0
-declare VdistDirName="dist_${VpkgName}"
-declare VdistDir="${this_dir_name%/}/dist/${VdistDirName}"
+declare VdistDirHostName=dist
+declare VdistDir="${this_dir_name%/}/${VdistDirHostName}/${VpkgName}_release_$(_date_show)"
 declare Vshalogfile="sha256sum.log"
 declare Vshalogascfile="sha256sum.log.asc"
 declare VgpgverifyID="D7E3805570B934FEC2CC8C6F1E72C8B73C01055B"
 
 _err ()
 {
-    echo -e "\e[31merr: ${1}\e[0m"; exit 1;
+    echo -e "\e[31m$(_date_show) err: ${1}\e[0m"; exit 1;
 }
 
 _nerr ()
 {
     if [ $? -ne 0 ]; then
-        err "$1";
+        _err "$1"
     fi
-}
-
-_date_show ()
-{
-    printf "%(%Y%m%d%H%M%S)T\n" "$@"
 }
 
 _print ()
@@ -81,7 +82,7 @@ _print ()
 
 _msg ()
 {
-    printf "\e[032mmsg: ${1}\e[0m" >&2
+    printf "\e[032m$(_date_show) msg: ${1}\e[0m" >&2
     printf "\n" >&2
 }
 
@@ -152,7 +153,7 @@ _get_dist_files ()
         if [[ $i = '.git' ]]     || \
                [[ $i = 'src' ]]  || \
                [[ $i = 'pkg' ]]  || \
-               [[ $i =~ ^"$VdistDirName" ]] || \
+               [[ $i =~ ^"$VdistDirHostName" ]] || \
                [[ $i =~ ^sha256sum\.log.* ]]
         then
             :
@@ -161,7 +162,7 @@ _get_dist_files ()
             if [[ -d $i ]] ; then
                 _nerr "inner pwd -- 2"
                 _msg "gen shahash for dir $i ..."
-                j="$(find "$i "-type f -print0 | xargs --null sha56sum -b)"
+                j="$(find "$i" -type f -print0 | xargs --null sha256sum -b)"
                 _nerr "shahash: dir $i"
             else
                 _msg "gen shahash for file $i ..."
@@ -221,6 +222,9 @@ ${BASH_SOURCE[0]} [-h|--help|--list-arch] [-a architecture] [--nm] [-c config] [
 
 EOF
 }
+
+# ==================== set -e end ====================
+set +e
 
 declare options
 options="$(getopt -o ha:c:i \
