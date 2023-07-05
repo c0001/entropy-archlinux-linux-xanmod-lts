@@ -40,12 +40,12 @@ jobs:
         run: |
           echo "TOP_USER_ID=$(id -u)"       >> ${GITHUB_ENV}
           echo "TOP_USER_GROUP_ID=$(id -g)" >> ${GITHUB_ENV}
-          echo "TOP_MAKE_TYPE=test"         >> ${GITHUB_ENV}
+          echo "TOP_MAKE_TYPE=$(cat .release-make-type)" >> ${GITHUB_ENV}
           echo "RELEASE_DATE=$(date -u +'%Y%m%d%H%M%S')" >> ${GITHUB_ENV}
           echo "RELEASE_VERSION=$(cat .release-version)" >> ${GITHUB_ENV}
       - name: Set Env (Tag)
         run: |
-          echo "RELEASE_TAGNAME=CI/${{ env.TOP_MAKE_TYPE }}/${{ github.ref_name }}/v${{ env.RELEASE_VERSION }}/${{ env.RELEASE_DATE }}" >> ${GITHUB_ENV}
+          echo "RELEASE_TAGNAME=CI/branch/${{ github.ref_name }}/make/${{ env.TOP_MAKE_TYPE }}/v${{ env.RELEASE_VERSION }}/${{ env.RELEASE_DATE }}" >> ${GITHUB_ENV}
       - name: Build docker image
         run: |
           sed -E -i -e "s|<<<<USERID>>>>|${{ env.TOP_USER_ID }}|g" -e "s|<<<<GROUPID>>>>|${{ env.TOP_USER_GROUP_ID }}|g" ./Dockerfile
