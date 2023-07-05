@@ -1,0 +1,74 @@
+# This is a basic workflow to help you get started with Actions
+
+name: release-test
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for
+  # the master branch
+  push:
+    branches: [ entropy-test ]
+  pull_request:
+    branches: [ entropy-test ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+permissions:
+  # gh-release permission needed
+  contents: write
+
+# A workflow run is made up of one or more jobs that can run
+# sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os:
+          - ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as
+    # part of the job
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set Env (Top)
+        run: |
+          echo "TOP_USER_ID=$(id -u)" >> ${GITHUB_ENV}
+          echo "TOP_USER_GROUP_ID=$(id -g)" >> ${GITHUB_ENV}
+          echo "RELEASE_DATE=$(date -u +'%Y%m%d%H%M%S')" >> ${GITHUB_ENV}
+          echo "RELEASE_VERSION=$(cat .release-version)" >> ${GITHUB_ENV}
+      - name: Set Env (Tag)
+        run: |
+          echo "RELEASE_TAGNAME=CI/${{ github.ref_name }}/v${{ env.RELEASE_VERSION }}/${{ env.RELEASE_DATE }}" >> ${GITHUB_ENV}
+      - name: Build docker image
+        run: |
+          sed -E -i -e "s|<<<<USERID>>>>|${{ env.TOP_USER_ID }}|g" -e "s|<<<<GROUPID>>>>|${{ env.TOP_USER_GROUP_ID }}|g" ./Dockerfile
+          docker build -t this_build_image -f ./Dockerfile .
+      - name: Build kernel
+        run: |
+          docker run -i -e __MAKE_TYPE__=test -v $PWD:/home/builder/project/linux-xanmod-lts -w /home/builder/project/linux-xanmod-lts this_build_image
+      # - name: "Create latest pre-release tag"
+      #   uses: rickstaa/action-create-tag@v1
+      #   id: "tag_create"
+      #   with:
+      #     tag: ${{ env.RELEASE_TAGNAME }}
+      #     tag_exists_error: true
+      #     no_verify_tag: false
+      # - name: Release
+      #   uses: softprops/action-gh-release@v1
+      #   with:
+      #     name: "PreBuilt (CI: dev) ${{ env.RELEASE_VERSION }}/${{ env.RELEASE_DATE }}"
+      #     tag_name: ${{ env.RELEASE_TAGNAME }}
+      #     prerelease: true
+      #     files: |
+      #       dist/*.tar.xz
+
+# Local Variables:
+# tab-width: 2
+# yaml-indent-offset: 2
+# End:
