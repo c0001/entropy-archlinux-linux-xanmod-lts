@@ -1,10 +1,11 @@
 FROM archlinux:base-devel
 
-RUN pacman -Syyu --noconfirm && \
+RUN pacman -Syyu --noconfirm &&            \
     pacman -S --needed --noconfirm openssh \
-    git fakeroot binutils gcc awk binutils xz \
-    libarchive bzip2 coreutils file findutils \
-    gettext grep gzip sed ncurses
+    coreutils binutils git gnupg fakeroot  \
+    awk tar xz                             \
+    gcc clang llvm kmod initramfs pahole   \
+    bc cpio libelf perl llvm lld python
 
 RUN groupadd -g <<<<GROUPID>>>> builder
 RUN useradd  -u <<<<USERID>>>> -g <<<<GROUPID>>>> -s /bin/bash builder
