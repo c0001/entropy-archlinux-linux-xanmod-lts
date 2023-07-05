@@ -160,14 +160,14 @@ _cmd_exec_main_step ()
     local -a _envs=("${@:2}")
     if [ "$Vtest" = 'y' ]; then
         _cmd_exec_notest \
-            env "${_envs[@]}"       \
+            makepkg "${_envs[@]}"       \
             "PKGBASE=$Vpkgbasename" \
             "PKGVER=$Vpkgver"       \
             "PKGREL=$Vpkgrel"       \
-            makepkg "$opts" -p __FAKE_PKGBUILD__
+            "$opts" -p __FAKE_PKGBUILD__
         return $?
     fi
-    _cmd_exec_notest env "${_envs[@]}" makepkg "$opts"
+    _cmd_exec_notest makepkg "${_envs[@]}" "$opts"
 }
 
 declare -a VdistITEMS
@@ -313,10 +313,16 @@ case "$Vconfig" in
 esac
 
 declare -a Vargs
-[[ -n $Vmarch ]]           && Vargs+=("_microarchitecture=${Vmarch}")
-[[ -n $Vmulticpu ]]        && Vargs+=("use_numa=${Vmulticpu}")
-[[ -n $Vconfig ]]          && Vargs+=("_config=${Vconfig}")
-[[ -n $Vcompress ]]        && Vargs+=("_compress_modules=${Vcompress}")
+declare Vnprocs
+Vnprocs="$(nproc)"; _nerr "inner nproc"
+if [[ ! $Vnprocs =~ ^[1-9][0-9]* ]] ; then
+    _nerr "inner invalid nproc value: $Vnprocs"
+fi
+Vargs+=("MAKEFLAGS=-j${Vnprocs}")
+Vargs+=("_microarchitecture=${Vmarch}")
+Vargs+=("use_numa=${Vmulticpu}")
+Vargs+=("_config=${Vconfig}")
+Vargs+=("_compress_modules=${Vcompress}")
 
 function _Vfunc_clean_build_cache () {
     local opwd
