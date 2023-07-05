@@ -61,12 +61,13 @@ declare VgpgverifyID="D7E3805570B934FEC2CC8C6F1E72C8B73C01055B"
 
 declare VdistDirHostName=dist
 declare VdistDir
+declare VdistDirName
 declare VdistDirParent
 declare VdistTarball
 declare VpkgName
 function _Vfunc_set_pkgnames_and_distdir ()
 {
-    local prefix=''
+    local prefix='' tmpvar
     [[ $Vtest = 'y' ]] && prefix='FAKE__'
     # fake basename will also applied to fake pkgbuild's env
     Vpkgbasename="${prefix}${Vpkgbasename}"
@@ -91,6 +92,11 @@ function _Vfunc_set_pkgnames_and_distdir ()
         if [[ -e $VdistTarball ]] ; then
             _err "dist tarball existed: $VdistTarball"
         fi
+    fi
+    tmpvar="${VdistDir%/}"
+    VdistDirName="${tmpvar##*/}"
+    if [[ -z $VdistDirName ]] ; then
+        _err "inner VdistDirName empty"
     fi
 }
 
@@ -359,7 +365,7 @@ if [[ $Vrtn -eq 0 ]]; then
         _msg "clean build cache ..."
         _Vfunc_clean_build_cache
         _msg "create release tarball ..."
-        _cmd_exec_notest tar -Jcf "$VdistTarball" -C "${VdistDirParent}" "$VdistDir"
+        _cmd_exec_notest tar -Jcf "$VdistTarball" -C "${VdistDirParent}" "$VdistDirName"
         _nerr "create dist tarball with fatal: $VdistTarball"
         _cmd_exec_notest rm -rf "$VdistDir"
         _nerr "remove dist dir fatal: $VdistDir"
