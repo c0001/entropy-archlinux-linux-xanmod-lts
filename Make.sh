@@ -55,8 +55,8 @@ declare Vcompress=n
 declare Vtest=n
 declare Vinstall=n
 declare Vrtn=0
-declare Vshalogfile="sha256sum.log"
-declare Vshalogascfile="sha256sum.log.asc"
+declare Vshalogfilename="sha256sum.log"
+declare Vshalogascfilename="sha256sum.log.asc"
 declare VgpgverifyID="D7E3805570B934FEC2CC8C6F1E72C8B73C01055B"
 
 declare VdistDirHostName=dist
@@ -206,8 +206,12 @@ _get_dist_files ()
                 j="$(sha256sum -b "$i")"
                 _nerr "shahash: file $i"
             fi
-            VdistShaHashStr="${VdistShaHashStr}
+            if [[ -z $VdistShaHashStr ]]; then
+                VdistShaHashStr="${j}"
+            else
+                VdistShaHashStr="${VdistShaHashStr}
 ${j}"
+            fi
         fi
     done
     if [[ $_dotglob_p -ne 1 ]] ; then
@@ -347,18 +351,20 @@ if [[ $Vrtn -eq 0 ]]; then
         _nerr "cp generations to dist with fatal"
         cd "$VdistDir"
         _msg "Gen sha256sum.log ..."
-        if [[ -e $Vshalogfile ]] || [[ -e $Vshalogascfile ]]
+        if [[ -e $Vshalogfilename ]] || [[ -e $Vshalogascfilename ]]
         then
-            _err "inner: '$Vshalogfile' or '$Vshalogascfile' existed"
+            _err "inner: '$Vshalogfilename' or '$Vshalogascfilename' existed"
         fi
-        echo "$VdistShaHashStr" >> "$Vshalogfile"
+        echo "$VdistShaHashStr" >> "$Vshalogfilename"
         _nerr "write shahashs fatal"
+        _cmd_exec_notest sha256sum -c "$Vshalogfilename"
+        _nerr "shahash recheck fatal"
         if [[ -n $VgpgverifyID ]] && \
                gpg --list-secret-keys \
                    "$VgpgverifyID" >/dev/null 2>&1
         then
             gpg --detach-sign --armor \
-                -u "$VgpgverifyID" -o "$Vshalogascfile"  "$Vshalogfile"
+                -u "$VgpgverifyID" -o "$Vshalogascfilename"  "$Vshalogfilename"
         fi
         _nerr "shahash asc file generated with fatal"
         _msg "Ok: dist dir is '$VdistDir'"
