@@ -54,7 +54,7 @@ _cmd_exec ()
 _cmd_exec gpg --locate-keys torvalds@kernel.org gregkh@kernel.org
 _nerr "Import gpg keys with fatal"
 
-_v_workspace=/home/builder/project/linux-xanmod-lts
+_v_workspace='<<<<TOP_BUILD_MOUNT_PATH>>>'
 _v_make_type=${__MAKE_TYPE__}
 if [[ -z $_v_make_type ]] ; then
     _err "make type is not specified"
