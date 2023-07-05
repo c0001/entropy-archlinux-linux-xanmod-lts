@@ -51,6 +51,9 @@ _cmd_exec ()
     _cmd_show "$@"; "$@"
 }
 
+_cmd_exec gpg --locate-keys torvalds@kernel.org gregkh@kernel.org
+_nerr "Import gpg keys with fatal"
+
 _v_workspace=/home/builder/project/linux-xanmod-lts
 _v_make_type=${__MAKE_TYPE__}
 if [[ -z $_v_make_type ]] ; then
