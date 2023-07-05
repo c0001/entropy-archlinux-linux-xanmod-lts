@@ -15,6 +15,33 @@ this_dir_name="$( cd -P "$( dirname "$this_source_name" )" >/dev/null && pwd )"
 
 # ensure do with project root
 cd "$this_dir_name"
+
+function _Vfunc_array_memberp ()
+{
+    local i
+    for i in "${@:3}"; do
+        [ $i = "$1" ] && return 0
+    done
+    echo -e "\e[31m$2\e[0m"
+    return 1
+}
+
+declare Vpkgbasename
+Vpkgbasename=$(set -e; source PKGBUILD; echo "$pkgbase")
+declare Vpkgver
+Vpkgver=$(set -e; source PKGBUILD; echo "$pkgver")
+declare Vpkgrel
+Vpkgrel=$(set -e; source PKGBUILD; echo "$pkgrel")
+declare Vpkgarch
+Vpkgarch="$(uname -m)"
+( set -e; source PKGBUILD;
+  _Vfunc_array_memberp \
+      "$Vpkgarch" \
+      "current machine architecture $Vpkgarch \
+is not supported by defined { ${arch[*]} }" \
+      "${arch[@]}" ;
+)
+declare VpkgName="${Vpkgbasename}-${Vpkgver}-${Vpkgrel}-${Vpkgarch}"
 set +e
 
 declare Vmarch=0
@@ -24,15 +51,15 @@ declare Vcompress=n
 declare Vtest=n
 declare Vinstall=n
 declare Vrtn=0
-declare VdistDirName=dist
-declare VdistDir="${this_dir_name%/}/${VdistDirName}"
+declare VdistDirName="dist_${VpkgName}"
+declare VdistDir="${this_dir_name%/}/dist/${VdistDirName}"
 declare Vshalogfile="sha256sum.log"
 declare Vshalogascfile="sha256sum.log.asc"
 declare VgpgverifyID="D7E3805570B934FEC2CC8C6F1E72C8B73C01055B"
 
 _err ()
 {
-    echo -e "\e[31m${1}\e[0m"; exit 1;
+    echo -e "\e[31merr: ${1}\e[0m"; exit 1;
 }
 
 _nerr ()
@@ -54,7 +81,7 @@ _print ()
 
 _msg ()
 {
-    printf "\e[032m${1}\e[0m" >&2
+    printf "\e[032mmsg: ${1}\e[0m" >&2
     printf "\n" >&2
 }
 
@@ -94,8 +121,12 @@ _cmd_exec_main_step ()
     local opts="$1"
     local -a _envs=("${@:2}")
     if [ "$Vtest" = y ]; then
-        env "${_envs[@]}" makepkg "$opts" -p _PKGBUILD
-        return 0
+        env "${_envs[@]}"           \
+            "PKGBASE=$Vpkgbasename" \
+            "PKGVER=$Vpkgver"       \
+            "PKGREL=$Vpkgrel"       \
+            makepkg "$opts" -p __FAKE_PKGBUILD__
+        return $?
     fi
     _cmd_show env "${_envs[@]}" makepkg "$opts"
     env "${_envs[@]}" makepkg "$opts"
@@ -241,14 +272,24 @@ declare -a Vargs
 [[ -n $Vconfig ]]          && Vargs+=("_config=${Vconfig}")
 [[ -n $Vcompress ]]        && Vargs+=("_compress_modules=${Vcompress}")
 
-cd "$this_dir_name"; _nerr "inner cd: $this_dir_name"
-rm -f *.pkg.tar.zst ; _nerr "rm -f *.pkg.tar.zst"
-if [[ -d src ]] ; then
-    rm -rf ./src ; _nerr "rm -rf src"
-fi
-if [[ -d pkg ]] ; then
-    rm -rf ./pkg ; _nerr "rm -rf pkg"
-fi
+function _Vfunc_clean_build_cache () {
+    local opwd
+    opwd="$(pwd)"; _nerr "inner pwd -- _Vfunc_clean_build_cache"
+    _cmd_exec_notest cd "$this_dir_name"; _nerr "inner cd: $this_dir_name"
+    _cmd_exec_notest rm -f *.pkg.tar.zst ; _nerr "rm -f *.pkg.tar.zst"
+    _cmd_exec_notest rm -f *.tar.xz ; _nerr "rm -f *.tar.xz"
+    _cmd_exec_notest rm -f *.tar.sign ; _nerr "rm -f *.tar.sign"
+    _cmd_exec_notest rm -f patch-*-xanmod*.xz ; _nerr "rm -f patch-*-xanmod*.xz"
+    if [[ -d src ]] ; then
+        _cmd_exec_notest rm -rf ./src ; _nerr "rm -rf src"
+    fi
+    if [[ -d pkg ]] ; then
+        _cmd_exec_notest rm -rf ./pkg ; _nerr "rm -rf pkg"
+    fi
+    _cmd_exec_notest cd "$opwd" ; _nerr "inner cd: $opwd"
+}
+
+_Vfunc_clean_build_cache
 
 if [[ -e $VdistDir ]] ; then
     _msg "remove old dist: $VdistDir"
@@ -293,6 +334,11 @@ if [[ $Vrtn -eq 0 ]]; then
         fi
         _nerr "shahash asc file generated with fatal"
         _msg "Ok: dist dir is '$VdistDir'"
+        _msg "clean build cache ..."
+        _Vfunc_clean_build_cache
+        _msg "Ok: all is done"
+    else
+        _msg "makepkg with installation successfull"
     fi
 else
     _err "makepkg with fatal"

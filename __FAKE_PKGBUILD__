@@ -1,16 +1,14 @@
 # -*- mode: sh; -*-
-pkgbase=linux-xanmod-lts-fake
-_major=6.1
-pkgver=${_major}.37
-_branch=6.x
-xanmod=1
-pkgrel=${xanmod}
+pkgbase="$PKGBASE"
+pkgver="$PKGVER"
+pkgrel="$PKGREL"
+
 pkgdesc='Linux Xanmod LTS'
 url="http://www.xanmod.org/"
 arch=(x86_64)
 license=(GPL2)
 options=('!strip')
-source=(_PKGBUILD)
+source=(__FAKE_PKGBUILD__)
 sha256sums=('SKIP')
 
 build ()
@@ -21,6 +19,6 @@ build ()
 pkgname=("${pkgbase}" "${pkgbase}-headers")
 for _p in "${pkgname[@]}"; do
     eval "package_$_p() {
-       install --target-directory=\"\${pkgdir}\" \"\${startdir}/_PKGBUILD\"
+       install --target-directory=\"\${pkgdir}\" \"\${startdir}/__FAKE_PKGBUILD__\"
   }"
 done
