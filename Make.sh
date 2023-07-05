@@ -48,8 +48,6 @@ is not supported by defined { ${arch[*]} }" \
       "${arch[@]}" ;
 )
 
-declare VpkgName="${Vpkgbasename}-${Vpkgver}-${Vpkgrel}-${Vpkgarch}"
-
 declare Vmarch=0
 declare Vmulticpu=y
 declare Vconfig='config_x86-64-v1'
@@ -58,10 +56,21 @@ declare Vtest=n
 declare Vinstall=n
 declare Vrtn=0
 declare VdistDirHostName=dist
-declare VdistDir="${this_dir_name%/}/${VdistDirHostName}/${VpkgName}_release_$(_date_show)"
 declare Vshalogfile="sha256sum.log"
 declare Vshalogascfile="sha256sum.log.asc"
 declare VgpgverifyID="D7E3805570B934FEC2CC8C6F1E72C8B73C01055B"
+
+declare VdistDir
+declare VpkgName
+function _Vfunc_set_pkgnames_and_distdir ()
+{
+    local prefix=''
+    [[ $Vtest = 'y' ]] && prefix='FAKE__'
+    # fake basename will also applied to fake pkgbuild's env
+    Vpkgbasename="${prefix}${Vpkgbasename}"
+    VpkgName="${Vpkgbasename}-${Vpkgver}-${Vpkgrel}-${Vpkgarch}"
+    VdistDir="${this_dir_name%/}/${VdistDirHostName}/${VpkgName}_release_$(_date_show)"
+}
 
 _err ()
 {
@@ -106,7 +115,7 @@ _cmd_show ()
 _cmd_exec ()
 {
     _cmd_show "$@"
-    if [ "$Vtest" = y ]; then
+    if [ "$Vtest" = 'y' ]; then
         return 0
     fi
     "$@"
@@ -121,7 +130,7 @@ _cmd_exec_main_step ()
 {
     local opts="$1"
     local -a _envs=("${@:2}")
-    if [ "$Vtest" = y ]; then
+    if [ "$Vtest" = 'y' ]; then
         env "${_envs[@]}"           \
             "PKGBASE=$Vpkgbasename" \
             "PKGVER=$Vpkgver"       \
@@ -254,6 +263,7 @@ while true; do
     esac
     shift
 done
+_Vfunc_set_pkgnames_and_distdir
 
 case "$Vmarch" in
     0|1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37|38|39|40|41|42|43|44|45|46|47)
