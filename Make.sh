@@ -159,15 +159,15 @@ _cmd_exec_main_step ()
     local opts="$1"
     local -a _envs=("${@:2}")
     if [ "$Vtest" = 'y' ]; then
-        env "${_envs[@]}"           \
+        _cmd_exec_notest \
+            env "${_envs[@]}"       \
             "PKGBASE=$Vpkgbasename" \
             "PKGVER=$Vpkgver"       \
             "PKGREL=$Vpkgrel"       \
             makepkg "$opts" -p __FAKE_PKGBUILD__
         return $?
     fi
-    _cmd_show env "${_envs[@]}" makepkg "$opts"
-    env "${_envs[@]}" makepkg "$opts"
+    _cmd_exec_notest env "${_envs[@]}" makepkg "$opts"
 }
 
 declare -a VdistITEMS
