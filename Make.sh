@@ -71,7 +71,7 @@ function _Vfunc_set_pkgnames_and_distdir ()
     [[ $Vtest = 'y' ]] && prefix='FAKE__'
     # fake basename will also applied to fake pkgbuild's env
     Vpkgbasename="${prefix}${Vpkgbasename}"
-    VpkgName="${Vpkgbasename}-${Vpkgver}-${Vpkgrel}-${Vpkgarch}"
+    VpkgName="${Vpkgbasename}-${Vpkgver}-${Vpkgrel}-${Vpkgarch}-march_${Vmarch}"
     VdistDirParent="${this_dir_name%/}/${VdistDirHostName}"
     VdistDir="${VdistDirParent%/}/${VpkgName}_release_$(_date_show)"
     if [[ $Vinstall != 'y' ]] ; then
