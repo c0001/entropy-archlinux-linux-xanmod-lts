@@ -10,7 +10,7 @@ RUN pacman -Syyu --noconfirm &&            \
 RUN bash -c 'if ! grep -q ":<<<<GROUPID>>>>:" /etc/group ; then groupadd -g <<<<GROUPID>>>> <<<<GROUPNAME>>>>; fi'
 RUN useradd  -u <<<<USERID>>>> -g <<<<GROUPID>>>> -s /bin/bash <<<<USERNAME>>>>
 RUN mkdir -p <<<<TOP_BUILD_MOUNT_PATH>>>>
-RUN chown <<<<USERNAME>>>>:<<<<GROUPNAME>>>> /home/<<<<USERNAME>>>>
+RUN chown <<<<USERID>>>>:<<<<GROUPID>>>> /home/<<<<USERNAME>>>>
 
 COPY ENTRYPOINT.sh /ENTRYPOINT.sh
 RUN  chmod +x /ENTRYPOINT.sh
