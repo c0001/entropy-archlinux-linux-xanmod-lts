@@ -55,7 +55,7 @@ jobs:
           echo "RELEASE_TAGNAME=CI/branch/${{ github.ref_name }}/make/${{ env.TOP_BUILD_MAKE_TYPE }}/v${{ env.RELEASE_VERSION }}/${{ env.RELEASE_DATE }}" >> ${GITHUB_ENV}
       - name: Build docker image
         run: |
-          sed -E -i -e "s|<<<<USERID>>>>|${{ env.TOP_BUILD_USER_ID }}|g" -e "s|<<<<GROUPID>>>>|${{ env.TOP_BUILD_USER_GROUP_ID }}|g" -e "s|<<<<USERNAME>>>>|${{ env.TOP_BUILD_USER_NAME }}|g" -e "s|<<<<GROUPNAME>>>>|${{ env.TOP_BUILD_USER_GROUP_NAME }}|g" ./Dockerfile
+          sed -E -i -e "s|<<<<USERID>>>>|${{ env.TOP_BUILD_USER_ID }}|g" -e "s|<<<<GROUPID>>>>|${{ env.TOP_BUILD_USER_GROUP_ID }}|g" -e "s|<<<<USERNAME>>>>|${{ env.TOP_BUILD_USER_NAME }}|g" -e "s|<<<<GROUPNAME>>>>|${{ env.TOP_BUILD_USER_GROUP_NAME }}|g" -e "s|<<<<TOP_BUILD_MOUNT_PATH>>>>|${{ env.TOP_BUILD_MOUNT_PATH }}|g" ./Dockerfile
           sed -E -i -e "s|<<<<TOP_BUILD_MOUNT_PATH>>>>|${{ env.TOP_BUILD_MOUNT_PATH }}|g" ./ENTRYPOINT.sh
           docker build -t ${{ env.TOP_BUILD_DOCKER_IMAGE_TAG }} -f ./Dockerfile .
       - name: Build kernel
