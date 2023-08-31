@@ -7,6 +7,9 @@ RUN pacman -Syyu --noconfirm &&            \
     gcc clang llvm kmod initramfs pahole   \
     bc cpio libelf perl llvm lld python
 
+# Free disk space avoiding error when disk left space not enough
+RUN pacman -Scc --noconfirm
+
 RUN bash -c 'if ! grep -q ":<<<<GROUPID>>>>:" /etc/group ; then groupadd -g <<<<GROUPID>>>> <<<<GROUPNAME>>>>; fi'
 RUN useradd  -u <<<<USERID>>>> -g <<<<GROUPID>>>> -s /bin/bash <<<<USERNAME>>>>
 RUN mkdir -p <<<<TOP_BUILD_MOUNT_PATH>>>>

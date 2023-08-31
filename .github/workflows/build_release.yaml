@@ -42,6 +42,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      # freeup disk space so that the kernel building doesn't trigger
+      # 'No left space on disk' error since the github action disk
+      # space limitatio for free user.
+      - name: Free disk space
+        run: |
+          bash .free-github-action-disk-space@ubuntu.sh
       - name: Set Env (Top)
         run: |
           echo "TOP_BUILD_USER_ID=$(id -u)"       >> ${GITHUB_ENV}
