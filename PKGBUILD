@@ -40,12 +40,12 @@ if [ "${_compiler}" = "clang" ]; then
 fi
 
 # Choose between the 4 main configs for stable branch. Default x86-64-v1 which use CONFIG_GENERIC_CPU2:
-# Possible values: config_x86-64-v1 (default) / config_x86-64-v2 / config_x86-64-v3 / config_x86-64-v4
+# Possible values: config_x86-64-v1 / config_x86-64-v2 (default) / config_x86-64-v3
 # This will be overwritten by selecting any option in microarchitecture script
-# Source files: https://github.com/xanmod/linux/tree/5.17/CONFIGS/xanmod/gcc
-if [ -z ${_config+x} ]; then
-  _config=config_x86-64-v1
-fi
+# Source files: https://gitlab.com/xanmod/linux/-/tree/6.12/CONFIGS/xanmod/gcc?ref_type=heads
+#if [ -z ${_config+x} ]; then
+  _config=config
+#fi
 
 # Compress modules with ZSTD (to save disk space)
 if [ -z ${_compress_modules+x} ]; then
@@ -72,17 +72,16 @@ fi
 ### IMPORTANT: Do no edit below this line unless you know what you're doing
 
 pkgbase=linux-xanmod-lts
-_major=6.6
-pkgver=${_major}.53
+_major=6.18
+pkgver=${_major}.59
 _branch=6.x
 xanmod=1
 _revision=
-pkgrel=${xanmod}
+pkgrel=$((xanmod + 1))
 pkgdesc='Linux Xanmod - Long Term Support [LTS]'
 url="http://www.xanmod.org/"
 arch=(x86_64)
-
-license=(GPL2)
+license=(GPL-2.0-only)
 makedepends=(
   bc
   cpio
@@ -91,6 +90,9 @@ makedepends=(
   pahole
   perl
   python
+  rust
+  rust-bindgen
+  rust-src
   tar
   xz
 )
@@ -115,10 +117,10 @@ for _patch in ${_patches[@]}; do
     source+=("${_patch}::https://raw.githubusercontent.com/archlinux/svntogit-packages/${_commit}/trunk/${_patch}")
 done
 
-sha256sums=('d926a06c63dd8ac7df3f86ee1ffc2ce2a3b81a2d168484e76b5b389aba8e56d0'
+sha256sums=('9106a4605da9e31ff17659d958782b815f9591ab308d03b0ee21aad6c7dced4b'
             'SKIP'
-            '3412bb89172d6928e80d9809c81c30056ec7f66d56006438833a1f94576010ae'
-            'a8b38eb482eb685944757182c4886404abc12703e5e56ec39c7d61298d17d71f')
+            '77ff1f605eaf87e8650f05f86d8ae3bcc7a1da5d597f92ff20bb51595ae9ae3d'
+            'f4acc1760990c54348a029315d1505ccb7c7270cd70a9aeb728bffcced51e767')
 
 export KBUILD_BUILD_HOST=${KBUILD_BUILD_HOST:-archlinux}
 export KBUILD_BUILD_USER=${KBUILD_BUILD_USER:-makepkg}
@@ -139,13 +141,17 @@ prepare() {
   for src in "${source[@]}"; do
     src="${src%%::*}"
     src="${src##*/}"
+    src="${src%.zst}"
     [[ $src = *.patch ]] || continue
     msg2 "Applying patch $src..."
     patch -Np1 < "../$src"
   done
 
+  # Address bug https://gitlab.com/xanmod/linux/-/issues/446
+  sed -i '/^[[:space:]]*default "6" if / s/MEMERALDRAPIDS/MEMERALDRAPIDS || X86_NATIVE_CPU/' arch/x86/Kconfig.cpu
+
   # Applying configuration
-  cp -vf CONFIGS/xanmod/gcc/${_config} .config
+  cp -vf CONFIGS/x86_64/${_config} .config
   # enable LTO_CLANG_THIN
   if [ "${_compiler}" = "clang" ]; then
     scripts/config --disable LTO_CLANG_FULL
@@ -180,6 +186,7 @@ prepare() {
 
   # Compress modules by default (following Arch's kernel)
   if [ "$_compress_modules" = "y" ]; then
+    scripts/config --enable CONFIG_MODULE_COMPRESS
     scripts/config --enable CONFIG_MODULE_COMPRESS_ZSTD
   fi
 
@@ -219,13 +226,14 @@ prepare() {
   if [ "$_localmodcfg" = "y" ]; then
     if [ -f $HOME/.config/modprobed.db ]; then
       msg2 "Running Steven Rostedt's make localmodconfig now"
-      make ${_compiler_flags} LSMOD=$HOME/.config/modprobed.db localmodconfig
+      yes "" | make ${_compiler_flags} LSMOD=$HOME/.config/modprobed.db localmodconfig
     else
       msg2 "No modprobed.db data found"
       exit 1
     fi
   fi
 
+  msg2 "make ${_compiler_flags} olddefconfig"
   make ${_compiler_flags} olddefconfig
 
   make -s kernelrelease > version
@@ -242,6 +250,7 @@ prepare() {
 build() {
   cd linux-${_major}
   make ${_compiler_flags} all
+  make -C tools/bpf/bpftool vmlinux.h feature-clang-bpf-co-re=1
 }
 
 _package() {
@@ -252,11 +261,13 @@ _package() {
     kmod
   )
   optdepends=(
-    'wireless-regdb: to set the correct wireless channels of your country'
     'linux-firmware: firmware images needed for some devices'
+    'scx-scheds: to use sched-ext schedulers'
+    'wireless-regdb: to set the correct wireless channels of your country'
   )
   provides=(
     KSMBD-MODULE
+    NTSYNC-MODULE
     VIRTUALBOX-GUEST-MODULES
     WIREGUARD-MODULE
     NTFS3-MODULE
@@ -294,16 +305,17 @@ _package-headers() {
 
   msg2 "Installing build files..."
   install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
-    localversion.* version vmlinux
+    localversion.* version vmlinux tools/bpf/bpftool/vmlinux.h
   install -Dt "$builddir/kernel" -m644 kernel/Makefile
   install -Dt "$builddir/arch/x86" -m644 arch/x86/Makefile
   cp -t "$builddir" -a scripts
+  ln -srt "$builddir" "$builddir/scripts/gdb/vmlinux-gdb.py"
 
   # required when STACK_VALIDATION is enabled
   install -Dt "$builddir/tools/objtool" tools/objtool/objtool
 
   # required when DEBUG_INFO_BTF_MODULES is enabled
-  if [ -f "tools/bpf/resolve_btfids/resolve_btfids" ]; then install -Dt "$builddir/tools/bpf/resolve_btfids" tools/bpf/resolve_btfids/resolve_btfids ; fi
+  install -Dt "$builddir/tools/bpf/resolve_btfids" tools/bpf/resolve_btfids/resolve_btfids
 
   msg2 "Installing headers..."
   cp -t "$builddir" -a include
@@ -326,6 +338,14 @@ _package-headers() {
 
   echo "Installing KConfig files..."
   find . -name 'Kconfig*' -exec install -Dm644 {} "$builddir/{}" \;
+
+  msg2 "Installing Rust files..."
+  [ -f rust/*.rmeta ] && install -Dt "$builddir/rust" -m644 rust/*.rmeta
+  [ -f rust/*.so ] && install -Dt "$builddir/rust" rust/*.so
+
+  msg2 "Installing unstripped VDSO..."
+  make INSTALL_MOD_PATH="$pkgdir/usr" vdso_install \
+    link=  # Suppress build-id symlinks
 
   msg2 "Removing unneeded architectures..."
   local arch
