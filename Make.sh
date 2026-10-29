@@ -14,6 +14,18 @@ while [ -h "$this_source_name" ]; do # resolve $this_source_name until the file 
 done
 this_dir_name="$( cd -P "$( dirname "$this_source_name" )" >/dev/null && pwd )"
 
+_err ()
+{
+    echo -e "\e[31m$(_date_show) err: ${1}\e[0m"; exit 1;
+}
+
+_nerr ()
+{
+    if [ $? -ne 0 ]; then
+        _err "$1"
+    fi
+}
+
 # ensure do with project root
 cd "$this_dir_name"
 
@@ -47,10 +59,11 @@ Vpkgarch="$(uname -m)"
 is not supported by defined { ${arch[*]} }" \
       "${arch[@]}" ;
 )
+_nerr "check architecture"
 
 declare Vmarch=0
 declare Vmulticpu=y
-declare Vconfig='config_x86-64-v1'
+declare Vconfig='config_x86-64-v2'
 declare Vcompress=n
 declare Vtest=n
 declare Vinstall=n
@@ -97,18 +110,6 @@ function _Vfunc_set_pkgnames_and_distdir ()
     VdistDirName="${tmpvar##*/}"
     if [[ -z $VdistDirName ]] ; then
         _err "inner VdistDirName empty"
-    fi
-}
-
-_err ()
-{
-    echo -e "\e[31m$(_date_show) err: ${1}\e[0m"; exit 1;
-}
-
-_nerr ()
-{
-    if [ $? -ne 0 ]; then
-        _err "$1"
     fi
 }
 
@@ -248,7 +249,7 @@ ${BASH_SOURCE[0]} [-h|--help|--list-arch] [-a architecture] [--nm] [-c config] [
 
    Choose between the 4 main configs for stable branch. Default
    x86-64-v1 which use CONFIG_GENERIC_CPU2: Possible values:
-   'config_x86-64-v1' (default) / 'config_x86-64-v2' /
+   'config_x86-64-v1' / 'config_x86-64-v2' (default) /
    'config_x86-64-v3' / 'config_x86-64-v4' This will be overwritten by
    selecting any option in microarchitecture script Source files:
    https://github.com/xanmod/linux/tree/5.17/CONFIGS/xanmod/gcc
@@ -300,9 +301,9 @@ done
 _Vfunc_set_pkgnames_and_distdir
 
 case "$Vmarch" in
-    0|1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37|38|39|40|41|42|43|44|45|46|47)
+    0|1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37|38|39|40|41|42|43|44)
         : ;;
-    92|93|94|98|99) : ;;
+    99) : ;;
     *) _err "wrong type of architecture chosen '$Vmarch'." ;;
 esac
 
