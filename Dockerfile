@@ -5,7 +5,8 @@ RUN pacman -Syyu --noconfirm &&            \
     coreutils binutils git gnupg fakeroot  \
     awk tar xz bash grep                   \
     gcc clang llvm kmod initramfs pahole   \
-    bc cpio libelf perl llvm lld python
+    bc cpio libelf perl llvm lld python    \
+    rust rust-bindgen rust-src
 
 # Free disk space avoiding error when disk left space not enough
 RUN pacman -Scc --noconfirm
