@@ -165,12 +165,12 @@ _cmd_exec_main_step ()
             "PKGBASE=$Vpkgbasename" \
             "PKGVER=$Vpkgver"       \
             "PKGREL=$Vpkgrel"       \
-            "$opts" "${Vmakepkg_opts[@]}" \
+            $opts ${Vmakepkg_opts[@]} \
             -p __FAKE_PKGBUILD__
         return $?
     fi
     _cmd_exec_notest \
-        makepkg "${_envs[@]}" "$opts" "${Vmakepkg_opts[@]}"
+        makepkg "${_envs[@]}" $opts ${Vmakepkg_opts[@]}
 }
 
 declare -a VdistITEMS
